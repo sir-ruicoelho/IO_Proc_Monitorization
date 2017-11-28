@@ -374,5 +374,4 @@ fi
 imprimir
 
 #Remove o diretório temporado criado e termina a monitorização
-#echo deleting temporary files
 rm -rf temp
