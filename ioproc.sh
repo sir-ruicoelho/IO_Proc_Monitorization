@@ -2,30 +2,29 @@
 
 function displayHelp()
 {
-	#Função de ajuda
-	echo "-c Expressão regular"
-	echo "-s Data mínima"
-	echo "-e Data máxima"
-	echo "-u Seleção de processos através do nome do utilizador"
-	echo "-p Número de processos"
-	echo "-r Reverso"
+	#Help function
+	echo "-c Regular expression"
+	echo "-s Minimum date"
+	echo "-e Maximum date"
+	echo "-u Selection of processes by user name"
+	echo "-p Number of processes"
+	echo "-r Reverse"
 	echo "-w Sort and write values"
 	echo "-t Sort on total values"
-	echo "O último argumento deverá ser o tempo"
+	echo "The last argumments should be an int (time value)"
 	rm -rf temp
 	exit
 }
 
 function getprocfiles()
 {
-		#Faz a leitura dos ficheiros e armazena no diretório temporário
+	#Read the files and add them to a temporary directory.
         proclist=$( ls /proc )
         mkdir "temp/temp$1"
-        #Nos processos que não temos premissões apenas copiará o comm adicionando mais algumas informações ao ficheiro
+	#Processes without permissions only teh comm is copied.
         for procid in $proclist
         do
                 if [ -r "/proc/$procid/io" ]; then
-                        #echo "Tem premissões de leitura do ficheiro /proc/$procid/io. Copiando os ficheiros para temp/temp$1/$procid"
                         mkdir "temp/temp$1/$procid"
                         cp "/proc/$procid/comm" "temp/temp$1/$procid/comm"
                         cp "/proc/$procid/io" "temp/temp$1/$procid/$procid"
@@ -33,7 +32,6 @@ function getprocfiles()
 			echo $(stat -c "%z" /proc/$procid/io) >> "temp/temp$1/$procid/comm"
 			echo $(stat -c "%Z" /proc/$procid/io) >> "temp/temp$1/$procid/comm"
                 elif [ -e "/proc/$procid/comm" ]; then
-                		#echo "Não tem premissão de leitura do ficheiro /proc/$procid/io. Copiando os ficheiros para temp/temp$1/$procid"
                         mkdir "temp/temp$1/$procid"
                         cp "/proc/$procid/comm" "temp/temp$1/$procid/comm"
                         echo $(stat -c "%U" /proc/$procid/io) >> "temp/temp$1/$procid/comm"
@@ -41,27 +39,26 @@ function getprocfiles()
 			echo $(stat -c "%Z" /proc/$procid/io) >> "temp/temp$1/$procid/comm"
                 fi
         done
-        #echo "Cópia de processos terminada"
 }
 
 function validarArgumentos()
 {
-        #Verifica número de argumentos
+	#Check the number of arguments.
         if  (( $# > 14 )) || (( $# < 1 )); 
                 then
                         displayHelp
                         exit
         fi
-        #Verifica se o último argumento é um número
+        #Check if the last argument is an int.
         if ! [[ ${@: -1} =~ ^[0-9]+$ ]];
                 then
-                	#Ativa o menu de ajuda se o último argumento for -help, --help ou -h
+                	#Activates help menu.
 					if [[ "${@: -1}" == "-help" ]] || [[ "${@: -1}" == "--help" ]] || [[ "${@: -1}" == "-h" ]] ;
 						then
 							displayHelp "$1"
 							exit
 					else
-						echo "Último argumento tem de ser inteiro positivo"
+						echo "The last argument should be a positive int or zero"
 						exit
 					fi
         fi
@@ -85,7 +82,7 @@ function validarArgumentos()
 					fi
 					if [[ "$previousoption" == "-p" && ${@: -1} =~ ^[0-9]+$ ]]; then
 						if [[ "$argument" -lt 0 ]]; then
-							echo "Tem de ser um inteiro positivo ou zero"
+							echo "The last argument should be a positive int or zero."
 							exit 1
 						fi
 					elif [[ "$previousoption" == "-s" || "$previousoption" == "-e" ]]; then
@@ -93,13 +90,13 @@ function validarArgumentos()
 						if [[ $erro -eq 0 ]]; then
 							continue
 						else
-							echo "Data inválida"
+							echo "Invalid date"
 							exit 1
 						fi	
 					elif [[ "$argument" == "${@: -1}" ]]; then
 						continue
 					else
-						echo "Opção inválida!"
+						echo "Invalid option"
 					fi
 					checkargument=0
 					;;
@@ -110,12 +107,11 @@ function validarArgumentos()
 
 function precheckfiles()
 {
-		#Verifica se os processos extraídos inicialmente continuam a existir
+	#Check if processes still exist.
         tempfiles1=$( ls temp/temp1 )
         for tempfile in $tempfiles1
         do
                 if ! [ -e "temp/temp2/$tempfile" ]; then
-                        #echo "$tempfile doesnt exist in temp/temp2. deleting it"
                         rm -rf "temp/temp2/$tempfile"
                 fi
         done
@@ -123,7 +119,6 @@ function precheckfiles()
         for tempfile in $tempfiles2
         do
                 if ! [ -e "temp/temp2/$tempfile" ]; then
-                        #echo "$tempfile doesnt exist in temp/temp1. deleting it"
                         rm -rf "temp/temp1/$tempfile"
                 fi
         done
@@ -140,7 +135,7 @@ function defaultordenation()
 }
 function createproclinefile()
 {
-	#Extrai as informações do I/O e armazena num ficheiro temporário
+	#Extracts I/O info and store it into a temporary file.
 	rm -rf "temp/proclines"
 	touch "temp/proclines"
 	ttempfiles1=$( ls temp/temp1 )
@@ -159,7 +154,7 @@ function createproclinefile()
                 	RATEWS2=$( grep wchar "temp/temp2/$piddir/$piddir" | cut -d" " -f2 )
 			let "RATEWS = ($RATEWS2 - $RATEWS1) / $1"
 			let "TOTALB = ($READBS + $WRITEBS)"
-		#Define o I/O quando não temos premissões de leitura
+		#Defines I/O when there is no read permissions.
 		else
 			READBS=-1
 			WRITEBS=-1
@@ -176,7 +171,7 @@ function createproclinefile()
 
 function filterregex()
 {
-		#Faz a ordenação pela expressão regular
+	#Sort by regular expression.
         rm -rf temp/proclines.bak
         touch temp/proclines.bak
         sed -n "/^$1$/p" temp/proclines > temp/proclines.bak
@@ -187,7 +182,7 @@ function filterregex()
 
 function filterbyuser()
 {
-		#Faz a ordenação pelo nome de utilizador
+	#Sort by username.
         rm -rf temp/proclines.bak
         touch temp/proclines.bak
         sed -n "/\<$1\>/p" temp/proclines > temp/proclines.bak
@@ -198,6 +193,7 @@ function filterbyuser()
 
 function sortbynumberofprocs()
 {
+	#Sort by number of processes.
 	rm -rf temp/proclines.bak
 	touch temp/proclines.bak
 	head -n "$1" temp/proclines > temp/proclines.bak
@@ -208,6 +204,7 @@ function sortbynumberofprocs()
 
 function filtrardataminima()
 {
+	# Minimum date filtering.
 	valorminimo=$(date --date="$1" +"%s")
 	rm -rf temp/proclines.bak
         touch temp/proclines.bak
@@ -224,6 +221,7 @@ function filtrardataminima()
 
 function filtrardatamaxima()
 {
+	# Maximum date filtering.
 	valormaximo=$(date --date="$1" +"%s")
         rm -rf temp/proclines.bak
         touch temp/proclines.bak
@@ -240,39 +238,41 @@ function filtrardatamaxima()
 
 function reverter()
 {	
+	#Reverse.
 	rm -rf temp/proclines.bak
-    touch temp/proclines.bak
+    	touch temp/proclines.bak
 	tac temp/proclines > temp/proclines.bak
 	rm -rf temp/proclines
-    cp temp/proclines.bak temp/proclines
-    rm -rf temp/proclines.bak
+	cp temp/proclines.bak temp/proclines
+	rm -rf temp/proclines.bak
 }
+
 function sortonwritevalues()
 {
 	rm -rf temp/proclines.bak
-    touch temp/proclines.bak
+    	touch temp/proclines.bak
 	sort -t " " -k 7,7 -n -r -o "temp/proclines.bak" "temp/proclines"
 	rm -rf temp/proclines
-    cp temp/proclines.bak temp/proclines
-    rm -rf temp/proclines.bak
+    	cp temp/proclines.bak temp/proclines
+    	rm -rf temp/proclines.bak
 }
 function sortontotalvalues()
 {
 	rm -rf temp/proclines.bak
-    touch temp/proclines.bak
+    	touch temp/proclines.bak
 	sort -t " " -k 4,4 -n -r -o "temp/proclines.bak" "temp/proclines"
 	rm -rf temp/proclines
-    cp temp/proclines.bak temp/proclines
-    rm -rf temp/proclines.bak
+    	cp temp/proclines.bak temp/proclines
+    	rm -rf temp/proclines.bak
 }
 function sortonreadvalues()
 {
 	rm -rf temp/proclines.bak
-    touch temp/proclines.bak
+    	touch temp/proclines.bak
 	sort -t " " -k 5,5 -n -r -o "temp/proclines.bak" "temp/proclines"
 	rm -rf temp/proclines
-    cp temp/proclines.bak temp/proclines
-    rm -rf temp/proclines.bak
+    	cp temp/proclines.bak temp/proclines
+    	rm -rf temp/proclines.bak
 }
 function imprimir()
 {
@@ -292,23 +292,17 @@ function imprimir()
 }
 #MAIN
 
-#Apaga o diretório no caso do utilizador terminar com a sua KeyBoard
+#Delete temporary directory if processes is intererrupted by user.
 trap "rm -rf temp; exit 0" SIGINT
 
-#Chamada da função de validação
 validarArgumentos "$@"
 
-#Verifica se o diretório temp/ existe e, caso exista, elimina-o
 if [ -d temp ]; then
-        #echo "apagando o diretorio ./temp"
          rm -rf temp
 fi
 
-#Criação do diretório temp/
-#echo "criando o diretorio ./temp"
 mkdir temp
 
-#Faz a leitura dos processos e armazena-os para posterior tratamento
 getprocfiles "1"
 sleep "${@: -1}s"
 getprocfiles "2"
@@ -318,7 +312,7 @@ createproclinefile "${@: -1}"
 reversion=0
 wvalues=0
 tvalues=0
-#Vai buscar os filtros a aplicar
+
 while getopts "c:s:e:u:p:rwt" arg; do
   case $arg in
 		c)
@@ -370,8 +364,6 @@ if [[ $reversion -eq 1 ]]; then
 	reverter
 fi
 
-#Imprime a tabela na consola
 imprimir
 
-#Remove o diretório temporado criado e termina a monitorização
 rm -rf temp
